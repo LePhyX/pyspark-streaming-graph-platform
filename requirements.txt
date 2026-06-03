@@ -1,5 +1,6 @@
 # Core
 pyspark==3.5.1
+setuptools>=68.0.0  # restores distutils removed in Python 3.12 (required by PySpark toPandas)
 pandas>=2.0.0
 pyarrow>=14.0.0
 

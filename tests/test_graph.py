@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone
 
 from pipeline.graph import build_edges, build_graph, build_vertices
 from pipeline.schema import EVENT_SCHEMA
@@ -15,11 +16,14 @@ def spark():
 
 @pytest.fixture
 def sample_batch(spark):
+    def ts(s):
+        return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+
     data = [
-        ("2024-01-01T00:00:00", "u1", "Paris",  "p1", "Électronique", "s1", "AIME",  199.99),
-        ("2024-01-01T00:00:01", "u2", "Lyon",   "p1", "Électronique", "s1", "ACHAT", 199.99),
-        ("2024-01-01T00:00:02", "u1", "Paris",  "p2", "Mode",         "s2", "VOUT",  49.90),
-        ("2024-01-01T00:00:03", "u3", "Nantes", "p2", "Mode",         "s2", "AIME",  49.90),
+        (ts("2024-01-01T00:00:00"), "u1", "Paris",  "p1", "Électronique", "s1", "AIME",  199.99),
+        (ts("2024-01-01T00:00:01"), "u2", "Lyon",   "p1", "Électronique", "s1", "ACHAT", 199.99),
+        (ts("2024-01-01T00:00:02"), "u1", "Paris",  "p2", "Mode",         "s2", "VOUT",  49.90),
+        (ts("2024-01-01T00:00:03"), "u3", "Nantes", "p2", "Mode",         "s2", "AIME",  49.90),
     ]
     return spark.createDataFrame(data, EVENT_SCHEMA)
 

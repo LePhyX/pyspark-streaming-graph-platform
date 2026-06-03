@@ -75,22 +75,39 @@ def build_graph(batch_df: DataFrame) -> GraphFrame:
     return GraphFrame(build_vertices(batch_df), build_edges(batch_df))
 
 
+def _df_to_pandas(df):
+    """Convert a Spark DataFrame to Pandas via collect(), bypassing Arrow/toPandas issues."""
+    import pandas as pd
+    return pd.DataFrame([row.asDict() for row in df.collect()])
+
+
+def _write_csv(df, path: str) -> None:
+    """Write a Spark DataFrame to a single CSV file without going through pandas."""
+    import csv
+    rows = df.collect()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=df.columns)
+        writer.writeheader()
+        writer.writerows([row.asDict() for row in rows])
+
+
 def compute_metrics(graph: GraphFrame, export: bool = True) -> dict:
     """Compute degree centrality and connected components; return as Pandas DataFrames.
 
     If export=True, writes vertices and edges to CSV so the dashboard can consume them.
+    Uses collect() instead of toPandas() for Python 3.12 / Arrow compatibility.
     """
     graph.vertices.sparkSession.sparkContext.setCheckpointDir(CHECKPOINT_PATH)
 
-    vertices_pd   = graph.vertices.toPandas()
-    edges_pd      = graph.edges.toPandas()
-    degrees_pd    = graph.degrees.toPandas()
-    components_pd = graph.connectedComponents().toPandas()
+    vertices_pd   = _df_to_pandas(graph.vertices)
+    edges_pd      = _df_to_pandas(graph.edges)
+    degrees_pd    = _df_to_pandas(graph.degrees)
+    components_pd = _df_to_pandas(graph.connectedComponents())
 
     if export:
-        os.makedirs("data", exist_ok=True)
-        vertices_pd.to_csv(GRAPH_VERTICES_PATH, index=False)
-        edges_pd.to_csv(GRAPH_EDGES_PATH, index=False)
+        _write_csv(graph.vertices, GRAPH_VERTICES_PATH)
+        _write_csv(graph.edges,    GRAPH_EDGES_PATH)
 
     return {
         "degrees":    degrees_pd,
