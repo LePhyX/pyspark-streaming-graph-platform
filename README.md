@@ -16,15 +16,48 @@ Real-time streaming pipeline simulating user-seller-product interactions on a ma
 - Python 3.10+
 - pip
 
+> **GraphFrames JAR** : automatically downloaded from Maven on first Spark start via `spark.jars.packages = "graphframes:graphframes:0.8.3-spark3.5-s_2.12"`. No manual setup required.
+
 ## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
+## Validate environment
+
+Run once after installation to confirm Spark + GraphFrames work correctly:
+
+```bash
+python validate_env.py
+```
+
+Expected output:
+
+```
+── Démarrage SparkSession...
+   Spark version : 3.5.1  ✓
+── Construction des vertices...
+── Construction des edges...
+── Instanciation du GraphFrame...
+── graph.degrees :
++---+------+
+| id|degree|
++---+------+
+| p1|     2|
+| u1|     1|
+| s1|     1|
++---+------+
+── Validation réussie ✓
+```
+
 ## Launch
 
 ```bash
+# All-in-one (recommended)
+./run.sh
+
+# Or manually:
 # Terminal 1 — Event simulator
 python -m simulator.event_producer
 

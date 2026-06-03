@@ -3,8 +3,8 @@ pyspark==3.5.1
 pandas>=2.0.0
 pyarrow>=14.0.0
 
-# GraphFrames (Python wrapper — JAR loaded via spark.jars.packages at runtime)
-# graphframes:graphframes:0.8.3-spark3.5-s_2.12
+# GraphFrames — Python wrapper (JAR graphframes:graphframes:0.8.3-spark3.5-s_2.12 loaded at runtime via spark.jars.packages)
+graphframes>=0.6
 
 # Event simulation
 faker>=24.0.0
