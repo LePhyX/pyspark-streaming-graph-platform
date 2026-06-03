@@ -8,6 +8,7 @@ from config.settings import (
     WATERMARK_DELAY,
     WINDOW_DURATION,
 )
+from pipeline.graph import build_graph, compute_metrics
 from pipeline.schema import EVENT_SCHEMA
 
 
@@ -49,6 +50,13 @@ def build_purchase_by_category(stream_df: DataFrame) -> DataFrame:
     )
 
 
+def _write_graph_batch(batch_df: DataFrame, epoch_id: int) -> None:
+    if batch_df.count() == 0:
+        return
+    graph = build_graph(batch_df)
+    compute_metrics(graph, export=True)
+
+
 def start_queries(spark: SparkSession, stream_df: DataFrame):
     action_agg = build_action_window_agg(stream_df)
     purchase_agg = build_purchase_by_category(stream_df)
@@ -73,7 +81,16 @@ def start_queries(spark: SparkSession, stream_df: DataFrame):
         .start()
     )
 
-    return q1, q2
+    # Graph foreachBatch: builds GraphFrame and exports vertices/edges CSVs each trigger
+    q3 = (
+        stream_df.writeStream
+        .foreachBatch(_write_graph_batch)
+        .option("checkpointLocation", CHECKPOINT_PATH + "graph")
+        .trigger(processingTime="5 seconds")
+        .start()
+    )
+
+    return q1, q2, q3
 
 
 if __name__ == "__main__":
@@ -83,7 +100,7 @@ if __name__ == "__main__":
     spark.sparkContext.setLogLevel("ERROR")
 
     stream_df = read_stream(spark)
-    q1, q2 = start_queries(spark, stream_df)
+    q1, q2, q3 = start_queries(spark, stream_df)
 
     print("Pipeline démarrée. Ctrl+C pour arrêter.")
     spark.streams.awaitAnyTermination()
