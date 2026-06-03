@@ -10,6 +10,18 @@ from config.settings import (
 )
 from pipeline.schema import EVENT_SCHEMA
 
+# Shared in-memory graph state updated by foreachBatch — consumed by the dashboard
+_graph_state: dict = {
+    "degrees":    None,
+    "components": None,
+    "vertices":   None,
+    "edges":      None,
+}
+
+
+def get_graph_state() -> dict:
+    return _graph_state
+
 
 def read_stream(spark: SparkSession, path: str = DATA_PATH) -> DataFrame:
     return (
@@ -49,8 +61,16 @@ def build_purchase_by_category(stream_df: DataFrame) -> DataFrame:
     )
 
 
+def _process_batch(batch_df: DataFrame, epoch_id: int) -> None:
+    if batch_df.count() == 0:
+        return
+    from pipeline.graph import build_graph, compute_metrics
+    graph = build_graph(batch_df)
+    _graph_state.update(compute_metrics(graph))
+
+
 def start_queries(spark: SparkSession, stream_df: DataFrame):
-    action_agg = build_action_window_agg(stream_df)
+    action_agg  = build_action_window_agg(stream_df)
     purchase_agg = build_purchase_by_category(stream_df)
 
     q1 = (
@@ -73,7 +93,15 @@ def start_queries(spark: SparkSession, stream_df: DataFrame):
         .start()
     )
 
-    return q1, q2
+    q3 = (
+        stream_df.writeStream
+        .foreachBatch(_process_batch)
+        .option("checkpointLocation", CHECKPOINT_PATH + "graph")
+        .trigger(processingTime="5 seconds")
+        .start()
+    )
+
+    return q1, q2, q3
 
 
 if __name__ == "__main__":
@@ -83,7 +111,7 @@ if __name__ == "__main__":
     spark.sparkContext.setLogLevel("ERROR")
 
     stream_df = read_stream(spark)
-    q1, q2 = start_queries(spark, stream_df)
+    start_queries(spark, stream_df)
 
     print("Pipeline démarrée. Ctrl+C pour arrêter.")
     spark.streams.awaitAnyTermination()

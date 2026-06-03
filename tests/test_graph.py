@@ -36,6 +36,12 @@ def test_build_vertices_contains_all_types(sample_batch):
     assert types == {"User", "Product", "Seller"}
 
 
+def test_build_edges_relationships(sample_batch):
+    edges = build_edges(sample_batch)
+    relationships = {r["relationship"] for r in edges.collect()}
+    assert relationships <= {"AIME", "VOUT", "ACHAT", "PROPOSE"}
+
+
 def test_build_edges_user_product_direction(sample_batch):
     edges = build_edges(sample_batch)
     user_edges = [r for r in edges.collect() if r["relationship"] in ("AIME", "VOUT", "ACHAT")]
