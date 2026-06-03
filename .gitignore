@@ -19,6 +19,7 @@ checkpoints/
 
 # Data (generated at runtime)
 data/
+logs/
 
 # Streamlit
 .streamlit/
