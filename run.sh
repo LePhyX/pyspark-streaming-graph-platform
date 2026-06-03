@@ -59,6 +59,8 @@ info "Dépendances OK."
 # ── 4. Répertoires runtime ───────────────────────────────────────────────────
 mkdir -p "$ROOT/data/events" "$ROOT/checkpoints" "$LOGS"
 
+export PYTHONPATH="$ROOT"
+
 # ── 5. Lancement des composants ───────────────────────────────────────────────
 info "Démarrage du simulateur..."
 python3 -m simulator.event_producer \
