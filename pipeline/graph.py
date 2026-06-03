@@ -1,8 +1,10 @@
+import os
+
 from graphframes import GraphFrame
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
-from config.settings import CHECKPOINT_PATH
+from config.settings import CHECKPOINT_PATH, GRAPH_EDGES_PATH, GRAPH_VERTICES_PATH
 
 
 def build_vertices(batch_df: DataFrame) -> DataFrame:
@@ -73,12 +75,26 @@ def build_graph(batch_df: DataFrame) -> GraphFrame:
     return GraphFrame(build_vertices(batch_df), build_edges(batch_df))
 
 
-def compute_metrics(graph: GraphFrame) -> dict:
-    """Compute degree centrality and connected components; return as Pandas DataFrames."""
+def compute_metrics(graph: GraphFrame, export: bool = True) -> dict:
+    """Compute degree centrality and connected components; return as Pandas DataFrames.
+
+    If export=True, writes vertices and edges to CSV so the dashboard can consume them.
+    """
     graph.vertices.sparkSession.sparkContext.setCheckpointDir(CHECKPOINT_PATH)
+
+    vertices_pd   = graph.vertices.toPandas()
+    edges_pd      = graph.edges.toPandas()
+    degrees_pd    = graph.degrees.toPandas()
+    components_pd = graph.connectedComponents().toPandas()
+
+    if export:
+        os.makedirs("data", exist_ok=True)
+        vertices_pd.to_csv(GRAPH_VERTICES_PATH, index=False)
+        edges_pd.to_csv(GRAPH_EDGES_PATH, index=False)
+
     return {
-        "degrees":    graph.degrees.toPandas(),
-        "components": graph.connectedComponents().toPandas(),
-        "vertices":   graph.vertices.toPandas(),
-        "edges":      graph.edges.toPandas(),
+        "degrees":    degrees_pd,
+        "components": components_pd,
+        "vertices":   vertices_pd,
+        "edges":      edges_pd,
     }
