@@ -1,3 +1,6 @@
+# Pipeline Spark Structured Streaming : lecture du stream JSON, agrégation par fenêtre glissante
+# et construction du graphe GraphFrames à chaque micro-batch.
+
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, count, window
 
@@ -11,35 +14,24 @@ from config.settings import (
 from pipeline.graph import build_graph, compute_metrics
 from pipeline.schema import EVENT_SCHEMA
 
-# Shared in-memory graph state updated by foreachBatch — consumed by the dashboard
-_graph_state: dict = {
-    "degrees":    None,
-    "components": None,
-    "vertices":   None,
-    "edges":      None,
-}
-
-
-def get_graph_state() -> dict:
-    return _graph_state
-
 
 def read_stream(spark: SparkSession, path: str = DATA_PATH) -> DataFrame:
     return (
         spark.readStream
         .schema(EVENT_SCHEMA)
+        # Limite les fichiers traités par déclenchement pour éviter une surcharge au démarrage.
         .option("maxFilesPerTrigger", 10)
         .json(path)
     )
 
 
 def build_action_window_agg(stream_df: DataFrame) -> DataFrame:
-    """Sliding window (1 min / 30s): event count per action type.
-    Output mode: update — emits only changed rows each trigger."""
     return (
         stream_df
+        # Le watermark doit être déclaré avant groupBy pour que Spark borne l'état de la fenêtre.
         .withWatermark("timestamp", WATERMARK_DELAY)
         .groupBy(
+            # Fenêtre glissante : durée 1 min, avance toutes les 30s.
             window(col("timestamp"), WINDOW_DURATION, SLIDE_DURATION),
             col("action_type"),
         )
@@ -47,36 +39,18 @@ def build_action_window_agg(stream_df: DataFrame) -> DataFrame:
     )
 
 
-def build_purchase_by_category(stream_df: DataFrame) -> DataFrame:
-    """Tumbling window (1 min): purchase count per product category.
-    Output mode: update — watermark bounds the state, update avoids full recompute."""
-    return (
-        stream_df
-        .filter(col("action_type") == "ACHAT")
-        .withWatermark("timestamp", WATERMARK_DELAY)
-        .groupBy(
-            window(col("timestamp"), WINDOW_DURATION),
-            col("product_cat"),
-        )
-        .agg(count("*").alias("purchase_count"))
-    )
-
-
 def _process_batch(batch_df: DataFrame, epoch_id: int) -> None:
+    # On ignore les micro-batches vides pour ne pas écrire un graphe vide.
     if batch_df.count() == 0:
         return
-    graph = build_graph(batch_df)
-    # export=True writes vertices/edges CSVs for the dashboard
-    metrics = compute_metrics(graph, export=True)
-    _graph_state.update(metrics)
+    compute_metrics(build_graph(batch_df))
 
 
 def start_queries(spark: SparkSession, stream_df: DataFrame):
-    action_agg   = build_action_window_agg(stream_df)
-    purchase_agg = build_purchase_by_category(stream_df)
-
+    # q1 — démontre : Windowing (glissant), Watermarking, Output Mode "update"
+    # "update" émet uniquement les lignes modifiées à chaque déclenchement.
     q1 = (
-        action_agg.writeStream
+        build_action_window_agg(stream_df).writeStream
         .outputMode("update")
         .format("memory")
         .queryName("action_counts")
@@ -84,27 +58,15 @@ def start_queries(spark: SparkSession, stream_df: DataFrame):
         .trigger(processingTime="5 seconds")
         .start()
     )
-
+    # q2 — démontre : GraphFrames via foreachBatch (export CSV pour le dashboard)
     q2 = (
-        purchase_agg.writeStream
-        .outputMode("update")
-        .format("memory")
-        .queryName("purchase_by_category")
-        .option("checkpointLocation", CHECKPOINT_PATH + "purchase_by_category")
-        .trigger(processingTime="5 seconds")
-        .start()
-    )
-
-    # Graph foreachBatch: builds GraphFrame and exports vertices/edges CSVs each trigger
-    q3 = (
         stream_df.writeStream
         .foreachBatch(_process_batch)
         .option("checkpointLocation", CHECKPOINT_PATH + "graph")
         .trigger(processingTime="5 seconds")
         .start()
     )
-
-    return q1, q2, q3
+    return q1, q2
 
 
 if __name__ == "__main__":
@@ -114,7 +76,7 @@ if __name__ == "__main__":
     spark.sparkContext.setLogLevel("ERROR")
 
     stream_df = read_stream(spark)
-    q1, q2, q3 = start_queries(spark, stream_df)
+    start_queries(spark, stream_df)
 
     print("Pipeline démarrée. Ctrl+C pour arrêter.")
     spark.streams.awaitAnyTermination()
