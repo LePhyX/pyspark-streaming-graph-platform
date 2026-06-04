@@ -25,9 +25,9 @@ PRICE_RANGES = {
     "Animaux":      (10.0,   400.0),
 }
 
-ACTIONS  = ["AIME", "VOUT", "ACHAT"]
-# Répartition réaliste : les likes sont plus fréquents que les vues, les achats rares.
-WEIGHTS  = [0.60,   0.30,   0.10]
+ACTIONS  = ["AIME", "VUES", "ACHAT"]
+# Répartition réaliste : vues >> likes >> achats.
+WEIGHTS  = [0.20,   0.70,   0.10]
 
 
 def generate_event() -> dict:

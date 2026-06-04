@@ -36,7 +36,7 @@ def build_edges(batch_df: DataFrame) -> DataFrame:
     user_edges = batch_df.filter(
         F.col("user_id").isNotNull()
         & F.col("product_id").isNotNull()
-        & F.col("action_type").isin("AIME", "VOUT", "ACHAT")
+        & F.col("action_type").isin("AIME", "VUES", "ACHAT")
     ).select(
         F.col("user_id").alias("src"),
         F.col("product_id").alias("dst"),

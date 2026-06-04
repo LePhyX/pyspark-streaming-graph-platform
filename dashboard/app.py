@@ -47,8 +47,10 @@ def build_pyvis(vertices: pd.DataFrame, edges: pd.DataFrame) -> str:
         net.add_node(row["id"], label=row["id"],
                      color=NODE_COLORS.get(row["type"], "#AAA"),
                      title=f'{row["type"]} — {row["label"]}')
+    node_ids = set(vertices["id"])
     for _, row in edges.iterrows():
-        net.add_edge(row["src"], row["dst"], label=row["relationship"], color="#666666")
+        if row["src"] in node_ids and row["dst"] in node_ids:
+            net.add_edge(row["src"], row["dst"], label=row["relationship"], color="#666666")
     return net.generate_html()
 
 
