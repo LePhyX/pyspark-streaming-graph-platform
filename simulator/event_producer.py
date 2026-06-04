@@ -1,3 +1,6 @@
+# Simulateur d'événements : génère des interactions utilisateur/produit/vendeur
+# sous forme de fichiers JSON déposés dans data/events/ toutes les 500ms.
+
 import json
 import os
 import random
@@ -23,6 +26,7 @@ PRICE_RANGES = {
 }
 
 ACTIONS  = ["AIME", "VOUT", "ACHAT"]
+# Répartition réaliste : les likes sont plus fréquents que les vues, les achats rares.
 WEIGHTS  = [0.60,   0.30,   0.10]
 
 

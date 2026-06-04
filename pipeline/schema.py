@@ -1,3 +1,6 @@
+# Schéma Spark des événements JSON produits par le simulateur.
+# Déclaré explicitement pour éviter l'inférence automatique et garantir le typage dès la lecture.
+
 from pyspark.sql.types import (
     DoubleType,
     StringType,

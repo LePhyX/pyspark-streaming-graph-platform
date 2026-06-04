@@ -1,22 +1,15 @@
 # Core
 pyspark==3.5.1
-setuptools>=68.0.0  # restores distutils removed in Python 3.12 (required by PySpark toPandas)
+setuptools>=68.0.0
 pandas>=2.0.0
 pyarrow>=14.0.0
 
-# GraphFrames — Python wrapper (JAR graphframes:graphframes:0.8.3-spark3.5-s_2.12 loaded at runtime via spark.jars.packages)
+# GraphFrames — JAR graphframes:graphframes:0.8.3-spark3.5-s_2.12 chargé au runtime via spark.jars.packages
 graphframes>=0.6
 
-# Event simulation
+# Simulation
 faker>=24.0.0
 
 # Dashboard
 streamlit>=1.32.0
-streamlit-autorefresh>=1.0.1
-networkx>=3.2.0
-matplotlib>=3.8.0
 pyvis>=0.3.2
-
-# Tests
-pytest>=7.4.0
-pytest-mock>=3.12.0
